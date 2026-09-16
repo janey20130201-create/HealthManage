@@ -1,6 +1,6 @@
 import { createServer } from 'node:http';
 import { readFile, stat } from 'node:fs/promises';
-import { dirname, join } from 'node:path';
+import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const projectRoot = dirname(fileURLToPath(import.meta.url));
@@ -26,7 +26,7 @@ async function loadEnv() {
   return values;
 }
 
-const config = await loadEnv();
+const config = { ...(await loadEnv()), ...process.env };
 const port = Number(process.env.API_PORT || config.API_PORT || 3000);
 if (!Number.isInteger(port) || port < 1 || port > 65535) {
   throw new Error('API_PORT는 1부터 65535 사이의 정수여야 합니다.');
@@ -101,8 +101,8 @@ function cookieValue(request, name) {
   return entry ? decodeURIComponent(entry.slice(name.length + 1)) : '';
 }
 
-function setSessionCookies(response, session) {
-  const secure = false; // Development server listens on local HTTP only.
+function setSessionCookies(response, session, request) {
+  const secure = request.headers['x-forwarded-proto'] === 'https' || process.env.VERCEL === '1' || process.env.NODE_ENV === 'production';
   const suffix = `HttpOnly; SameSite=Lax; Path=/; ${secure ? 'Secure; ' : ''}`;
   response.setHeader('Set-Cookie', [
     `carely_access=${encodeURIComponent(session.access_token)}; Max-Age=${Math.min(session.expires_in || 3600, 3600)}; ${suffix}`,
@@ -110,10 +110,12 @@ function setSessionCookies(response, session) {
   ]);
 }
 
-function clearSessionCookies(response) {
+function clearSessionCookies(response, request) {
+  const secure = request.headers['x-forwarded-proto'] === 'https' || process.env.VERCEL === '1' || process.env.NODE_ENV === 'production';
+  const suffix = secure ? '; Secure' : '';
   response.setHeader('Set-Cookie', [
-    'carely_access=; Max-Age=0; HttpOnly; SameSite=Lax; Path=/',
-    'carely_refresh=; Max-Age=0; HttpOnly; SameSite=Lax; Path=/',
+    `carely_access=; Max-Age=0; HttpOnly; SameSite=Lax; Path=/${suffix}`,
+    `carely_refresh=; Max-Age=0; HttpOnly; SameSite=Lax; Path=/${suffix}`,
   ]);
 }
 
@@ -160,11 +162,11 @@ async function sessionFor(request, response) {
         method: 'POST', body: { refresh_token: refresh },
       });
       access = session.access_token;
-      setSessionCookies(response, session);
+      setSessionCookies(response, session, request);
       user = session.user || await supabaseRequest('/auth/v1/user', { token: access });
     } catch (error) {
       if (error.status !== 400 && error.status !== 401) throw error;
-      clearSessionCookies(response);
+      clearSessionCookies(response, request);
     }
   }
   if (!user) throw httpError(401, '다시 로그인해 주세요.');
@@ -210,7 +212,8 @@ function validateProfile(body, withPassword = false) {
 async function handleAppApi(request, response, pathname) {
   if (!supabaseReady) throw httpError(503, 'Supabase 환경 변수가 설정되지 않았습니다.');
   const origin = request.headers.origin;
-  if (origin && origin !== `http://${request.headers.host}`) throw httpError(403, '사이트 주소에서 다시 시도해 주세요.');
+  const protocol = request.headers['x-forwarded-proto'] || (process.env.VERCEL === '1' ? 'https' : 'http');
+  if (origin && origin !== `${protocol}://${request.headers.host}`) throw httpError(403, '사이트 주소에서 다시 시도해 주세요.');
 
   if (pathname === '/api/auth/signup' && request.method === 'POST') {
     const body = await readJsonBody(request);
@@ -254,7 +257,7 @@ async function handleAppApi(request, response, pathname) {
       const session = await supabaseRequest('/auth/v1/token?grant_type=password', {
         method: 'POST', body: { email, password },
       });
-      setSessionCookies(response, session);
+      setSessionCookies(response, session, request);
       sendJson(response, 200, { ok: true, profile: await getProfile(session.user, session.access_token) });
     } catch (error) {
       if (error.status === 400 || error.status === 401) throw httpError(401, '아이디 또는 비밀번호가 맞지 않습니다.');
@@ -264,7 +267,7 @@ async function handleAppApi(request, response, pathname) {
   }
 
   if (pathname === '/api/auth/logout' && request.method === 'POST') {
-    clearSessionCookies(response);
+    clearSessionCookies(response, request);
     sendJson(response, 200, { ok: true });
     return;
   }
@@ -348,6 +351,12 @@ async function handleAppApi(request, response, pathname) {
 }
 
 async function readJsonBody(request) {
+  if (request.body !== undefined && request.body !== null && typeof request.body !== 'function') {
+    const raw = typeof request.body === 'string' ? request.body : JSON.stringify(request.body);
+    if (Buffer.byteLength(raw, 'utf8') > 32768) throw httpError(413, '요청이 너무 깁니다.');
+    try { return JSON.parse(raw); }
+    catch { throw httpError(400, 'JSON 요청 형식이 올바르지 않습니다.'); }
+  }
   const chunks = [];
   let length = 0;
   for await (const chunk of request) {
@@ -425,7 +434,7 @@ const staticFiles = new Map([
   ['/ai.css', ['ai.css', 'text/css; charset=utf-8']],
 ]);
 
-const server = createServer(async (request, response) => {
+export async function handleRequest(request, response) {
   try {
     const origin = request.headers.origin?.replace(/\/$/, '');
     if (origin && allowedOrigins.has(origin)) {
@@ -473,11 +482,13 @@ const server = createServer(async (request, response) => {
     if (!response.headersSent) sendJson(response, error.status || 502, { ok: false, error: error.message });
     else response.destroy(error);
   }
-});
+}
 
-server.listen(port, '127.0.0.1', () => {
-  console.log(`caring server: http://127.0.0.1:${port}`);
-  console.log(`OpenAI model: ${model}`);
-  console.log(`OpenAI key configured: ${Boolean(apiKey)}`);
-  console.log(`Supabase configured: ${supabaseReady}`);
-});
+if (process.argv[1] && fileURLToPath(import.meta.url) === resolve(process.argv[1])) {
+  createServer(handleRequest).listen(port, '127.0.0.1', () => {
+    console.log(`caring server: http://127.0.0.1:${port}`);
+    console.log(`OpenAI model: ${model}`);
+    console.log(`OpenAI key configured: ${Boolean(apiKey)}`);
+    console.log(`Supabase configured: ${supabaseReady}`);
+  });
+}

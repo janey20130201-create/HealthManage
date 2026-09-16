@@ -1,0 +1,9 @@
+.env
+.env.*
+!.env.example
+node_modules/
+tests/
+supabase/
+server.ps1
+start-server.cmd
+README.md

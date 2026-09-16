@@ -16,6 +16,22 @@ Windows PowerShell에서 `npm.ps1 cannot be loaded because running scripts is di
 
 기존 `./start-server.cmd` 실행 방식도 계속 사용할 수 있습니다. Node.js 설치 직후 `npm` 명령을 찾지 못하면 PowerShell을 새로 열어 다시 실행하세요. VS Code 터미널에서 계속 찾지 못한다면 VS Code를 재시작하세요.
 
+## Vercel 배포
+
+Vercel은 로컬용 `server.mjs`의 HTTP 리스너를 그대로 실행하지 않습니다. 이 저장소의 `api/` 파일은 같은 요청 처리 코드를 Vercel Functions로 실행하고, `npm run build`는 공개할 HTML/CSS/JS만 `dist/`에 복사합니다. [vercel.json](vercel.json)에 Framework Preset `Other`, 빌드 명령, 출력 폴더가 설정되어 있습니다. Vercel 프로젝트의 Root Directory는 저장소 최상위여야 합니다.
+
+Vercel 프로젝트 **Settings → Environment Variables**에서 다음 이름을 **Production** 환경에 설정하세요. 값은 로컬 `.env`의 동일한 항목을 사용하되, 키나 값을 GitHub 또는 채팅에 게시하지 마세요.
+
+- `SUPABASE_URL`
+- `SUPABASE_ANON_KEY`
+- `SUPABASE_SERVICE_ROLE_KEY` — 서버 함수 전용 비밀 키
+- `OPENAI_API_KEY`
+- `OPENAI_MODEL` — 로컬에서 사용 중인 모델명
+
+선택 사항: `OPENAI_API_BASE_URL`, `API_REQUEST_TIMEOUT_MS`. `API_PORT`와 `CLIENT_ORIGIN`은 Vercel에 설정할 필요가 없습니다. 환경 변수는 저장 후 **새 배포에만 적용**되므로 Production 재배포를 실행하세요. 배포 후 `https://<사이트주소>/api/health`에서 `openaiConfigured`와 `supabaseConfigured`가 모두 `true`인지 확인합니다. `/api/auth/me`의 비로그인 상태 401은 정상입니다.
+
+`.env`, `SUPABASE_SERVICE_ROLE_KEY` 값, 테스트 파일과 SQL은 정적 사이트에 게시되지 않도록 빌드 출력에서 제외합니다. 로컬에 있던 계정과 조회 기록은 배포로 자동 이전되지 않습니다.
+
 ## Supabase 데이터베이스 준비
 
 이 저장소에는 [초기 DB 마이그레이션](supabase/migrations/20260916000000_initial_schema.sql)과 [CLI 설정](supabase/config.toml)이 포함되어 있습니다. SQL은 Supabase Auth 사용자에 연결된 `public.profiles`(이름, 아이디, 성별, 생년월일, 알레르기, 키, 몸무게)와 `public.search_history`(수술/복용약 검색어, AI 결과, 검색 시각)를 생성합니다. 두 테이블은 RLS로 로그인한 본인 데이터만 읽고 수정할 수 있습니다. 이메일과 비밀번호는 이 테이블에 저장하지 않고 Supabase Auth에서 관리합니다.

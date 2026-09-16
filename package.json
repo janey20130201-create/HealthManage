@@ -6,9 +6,10 @@
   "scripts": {
     "dev": "node server.mjs",
     "start": "node server.mjs",
+    "build": "node scripts/build.mjs",
     "test:integration": "node tests/supabase.integration.mjs"
   },
   "engines": {
-    "node": ">=20"
+    "node": "24.x"
   }
 }
