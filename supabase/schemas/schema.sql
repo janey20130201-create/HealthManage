@@ -9,6 +9,7 @@ create table public.profiles (
   id uuid primary key references auth.users (id) on delete cascade,
   username text,
   full_name text,
+  email text,
   gender text,
   birth_date date,
   allergy text not null default '없음',
@@ -33,6 +34,9 @@ create table public.profiles (
 
 create unique index profiles_username_ci_key
   on public.profiles (lower(username)) where username is not null;
+
+create unique index profiles_email_ci_key
+  on public.profiles (lower(email)) where email is not null;
 
 create table public.search_history (
   id uuid primary key default gen_random_uuid(),
@@ -75,7 +79,19 @@ security definer
 set search_path = ''
 as $$
 begin
-  insert into public.profiles (id) values (new.id);
+  insert into public.profiles (
+    id, username, full_name, email, gender, birth_date, allergy, height_cm, weight_kg
+  ) values (
+    new.id,
+    nullif(btrim(new.raw_user_meta_data ->> 'username'), ''),
+    nullif(btrim(new.raw_user_meta_data ->> 'full_name'), ''),
+    new.email,
+    nullif(new.raw_user_meta_data ->> 'gender', ''),
+    nullif(new.raw_user_meta_data ->> 'birth_date', '')::date,
+    coalesce(nullif(btrim(new.raw_user_meta_data ->> 'allergy'), ''), '없음'),
+    nullif(new.raw_user_meta_data ->> 'height_cm', '')::numeric,
+    nullif(new.raw_user_meta_data ->> 'weight_kg', '')::numeric
+  );
   return new;
 end;
 $$;
@@ -84,8 +100,27 @@ create trigger on_auth_user_created_caring
 after insert on auth.users
 for each row execute function private.handle_new_auth_user();
 
+create function private.sync_auth_user_email()
+returns trigger
+language plpgsql
+security definer
+set search_path = ''
+as $$
+begin
+  update public.profiles set email = new.email where id = new.id;
+  return new;
+end;
+$$;
+
+create trigger on_auth_user_email_changed_caring
+after update of email on auth.users
+for each row
+when (old.email is distinct from new.email)
+execute function private.sync_auth_user_email();
+
 revoke all on function private.set_profile_updated_at() from public, anon, authenticated;
 revoke all on function private.handle_new_auth_user() from public, anon, authenticated;
+revoke all on function private.sync_auth_user_email() from public, anon, authenticated;
 
 alter table public.profiles enable row level security;
 alter table public.search_history enable row level security;

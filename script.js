@@ -11,6 +11,39 @@ const authLoginError = document.querySelector('#authLoginError');
 const signupError = document.querySelector('#signupError');
 const authTabs = document.querySelectorAll('.auth-tab');
 const accountStorageKey = 'carelyAccounts';
+let cloudProfile = null;
+let cloudHistory = [];
+
+async function appApi(path, options = {}) {
+  if (location.protocol === 'file:') throw new Error('Supabase 계정 기능은 npm run dev로 사이트를 실행해야 사용할 수 있습니다.');
+  const response = await fetch(path, {
+    ...options,
+    credentials: 'same-origin',
+    headers: { 'Content-Type': 'application/json', ...(options.headers || {}) },
+  });
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok && !response.headers.get('Content-Type')?.includes('application/json')) {
+    throw new Error('계정 서버를 찾지 못했습니다. npm run dev로 실행한 사이트 주소에서 접속해 주세요.');
+  }
+  if (!response.ok) throw new Error(data.error || '서버 요청에 실패했습니다.');
+  return data;
+}
+
+async function loadCloudHistory() {
+  if (!cloudProfile) return;
+  const data = await appApi('/api/history');
+  cloudHistory = data.history || [];
+  renderHistory();
+}
+
+async function startCloudSession(profile) {
+  cloudProfile = profile;
+  sessionStorage.setItem('carelyUser', profile.name);
+  sessionStorage.setItem('carelyUserId', profile.id);
+  cloudHistory = [];
+  await loadCloudHistory();
+  showDashboard(profile.name);
+}
 
 // 회원가입 폼에서는 브라우저가 이전 입력값을 자동으로 제안하지 않도록 합니다.
 signupForm.setAttribute('autocomplete', 'off');
@@ -27,19 +60,30 @@ function switchAuthTab(tab) {
   signupForm.classList.toggle('hidden', tab !== 'signup');
 }
 authTabs.forEach((button) => button.addEventListener('click', () => switchAuthTab(button.dataset.authTab)));
-authLoginForm.addEventListener('submit', (event) => {
+authLoginForm.addEventListener('submit', async (event) => {
   event.preventDefault();
   const id = document.querySelector('#loginId').value.trim();
   const password = document.querySelector('#loginPassword').value;
   if (!id || !password) { authLoginError.textContent = '아이디와 비밀번호를 입력해 주세요.'; return; }
-  const account = id === '홍길동' && password === getDemoPassword() ? { id, name: '홍길동' } : getAccounts().find((item) => item.id === id && item.password === password);
-  if (!account) { authLoginError.textContent = '아이디 또는 비밀번호가 맞지 않습니다.'; return; }
-  authLoginError.textContent = '';
-  sessionStorage.setItem('carelyUser', account.name || account.id);
-  sessionStorage.setItem('carelyUserId', account.id);
-  showDashboard(account.name || account.id);
+  if (id === '홍길동' && password === getDemoPassword()) {
+    if (cloudProfile) await appApi('/api/auth/logout', { method: 'POST' }).catch(() => {});
+    cloudProfile = null;
+    authLoginError.textContent = '';
+    sessionStorage.setItem('carelyUser', '홍길동');
+    sessionStorage.setItem('carelyUserId', '홍길동');
+    showDashboard('홍길동');
+    return;
+  }
+  const button = authLoginForm.querySelector('button[type="submit"]');
+  button.disabled = true;
+  try {
+    const data = await appApi('/api/auth/login', { method: 'POST', body: JSON.stringify({ id, password }) });
+    authLoginError.textContent = '';
+    await startCloudSession(data.profile);
+  } catch (error) { authLoginError.textContent = error.message; }
+  finally { button.disabled = false; }
 });
-signupForm.addEventListener('submit', (event) => {
+signupForm.addEventListener('submit', async (event) => {
   event.preventDefault();
   const name = document.querySelector('#signupName').value.trim();
   const gender = document.querySelector('#signupGender').value;
@@ -57,15 +101,20 @@ signupForm.addEventListener('submit', (event) => {
   if (email && !emailPattern.test(email)) { signupError.textContent = '올바른 이메일 형식을 입력해 주세요. 예: example@email.com'; return; }
   if (password !== passwordConfirm) { signupError.textContent = '비밀번호가 서로 일치하지 않습니다.'; return; }
   if (!name || !gender || !birthYear || !birthMonth || !birthDay || !email || !allergy || !height || !weight || !id || !password) { signupError.textContent = '모든 항목을 입력해 주세요. 알레르기가 없으면 “없음”이라고 입력해 주세요.'; return; }
-  if (id === '홍길동' || getAccounts().some((item) => item.id === id)) { signupError.textContent = '이미 사용 중인 아이디입니다.'; return; }
-  const accounts = getAccounts();
-  accounts.push({ name, gender, birthYear, birthMonth, birthDay, email, allergy, height, weight, id, password });
-  localStorage.setItem(accountStorageKey, JSON.stringify(accounts));
-  localStorage.removeItem(`${historyStorageKey}_${encodeURIComponent(id)}`);
-  signupForm.reset();
-  switchAuthTab('login');
-  document.querySelector('#loginId').value = id;
-  authLoginError.textContent = '회원가입이 완료되었습니다. 비밀번호를 입력해 주세요.';
+  const button = signupForm.querySelector('button[type="submit"]');
+  button.disabled = true;
+  try {
+    await appApi('/api/auth/signup', {
+      method: 'POST',
+      body: JSON.stringify({ name, gender, birthYear, birthMonth, birthDay, email, allergy, height, weight, id, password }),
+    });
+    signupError.textContent = '';
+    signupForm.reset();
+    switchAuthTab('login');
+    document.querySelector('#loginId').value = id;
+    authLoginError.textContent = '회원가입이 완료되었습니다. 비밀번호를 입력해 주세요.';
+  } catch (error) { signupError.textContent = error.message; }
+  finally { button.disabled = false; }
 });
 const surgeryForm = document.querySelector('#surgeryForm');
 const surgeryName = document.querySelector('#surgeryName');
@@ -168,6 +217,7 @@ function renderAllergyWarning() {
   allergyWarning.classList.remove('hidden');
 }
 function currentProfile() {
+  if (cloudProfile) return cloudProfile;
   const currentName = sessionStorage.getItem('carelyUser') || '홍길동';
   const currentId = sessionStorage.getItem('carelyUserId');
   const account = getAccounts().find((item) => item.id === currentId) || getAccounts().find((item) => item.name === currentName);
@@ -223,7 +273,7 @@ document.querySelector('#sidebarProfileButton').addEventListener('click', () => 
 document.querySelector('.new-chat-button').addEventListener('click', showMainMode);
 document.querySelector('.new-chat-button').innerHTML = '⌕ 새 검색';
 document.querySelectorAll('.sidebar-nav button:not(#sidebarHistoryButton)').forEach((button) => button.addEventListener('click', showMainMode));
-profileForm.addEventListener('submit', (event) => {
+profileForm.addEventListener('submit', async (event) => {
   event.preventDefault();
   const oldName = sessionStorage.getItem('carelyUser') || '홍길동';
   const oldId = sessionStorage.getItem('carelyUserId') || '홍길동';
@@ -235,6 +285,22 @@ profileForm.addEventListener('submit', (event) => {
   if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(profile.email)) { profileMessage.textContent = '올바른 이메일 형식을 입력해 주세요.'; return; }
   if ((oldPassword || newPassword || confirmedPassword) && (!oldPassword || !newPassword || !confirmedPassword)) { profileMessage.textContent = '비밀번호를 변경하려면 현재 비밀번호와 새 비밀번호 확인을 모두 입력해 주세요.'; return; }
   if (newPassword && newPassword !== confirmedPassword) { profileMessage.textContent = '새 비밀번호가 서로 일치하지 않습니다.'; return; }
+  if (cloudProfile) {
+    saveProfileButton.disabled = true;
+    try {
+      const data = await appApi('/api/profile', {
+        method: 'PATCH',
+        body: JSON.stringify({ ...profile, currentPassword: oldPassword, newPassword }),
+      });
+      cloudProfile = data.profile;
+      sessionStorage.setItem('carelyUser', cloudProfile.name);
+      sessionStorage.setItem('carelyUserId', cloudProfile.id);
+      showDashboard(cloudProfile.name);
+      profileMessage.textContent = '정보가 저장되었습니다.';
+    } catch (error) { profileMessage.textContent = error.message; }
+    finally { saveProfileButton.disabled = false; }
+    return;
+  }
   const accounts = getAccounts();
   const accountIndex = accounts.findIndex((item) => item.id === oldId) >= 0 ? accounts.findIndex((item) => item.id === oldId) : accounts.findIndex((item) => item.name === oldName);
   const isDemo = oldName === '홍길동' && oldId === '홍길동';
@@ -260,14 +326,23 @@ profileForm.addEventListener('submit', (event) => {
 });
 
 function getHistory() {
+  if (cloudProfile) return cloudHistory;
   try { return JSON.parse(localStorage.getItem(getHistoryStorageKey()) || '[]'); } catch { return []; }
 }
 function removeHistoryEntry(type, query) {
+  if (cloudProfile) return;
   const filtered = getHistory().filter((item) => !(item.type === type && item.query.toLowerCase() === query.toLowerCase()));
   localStorage.setItem(getHistoryStorageKey(), JSON.stringify(filtered));
   renderHistory();
 }
 function saveHistory(type, query, aiAnswer = '', aiTable = null) {
+  if (cloudProfile) {
+    if (!aiTable || !aiTable.recognized || !Array.isArray(aiTable.rows) || !aiTable.rows.length) return;
+    appApi('/api/history', { method: 'POST', body: JSON.stringify({ type, query, aiTable }) })
+      .then(loadCloudHistory)
+      .catch((error) => { console.error('조회 기록을 저장하지 못했습니다:', error.message); });
+    return;
+  }
   const history = getHistory().filter((item) => !(item.type === type && item.query.toLowerCase() === query.toLowerCase()));
   history.unshift({ type, query, date: new Date().toISOString(), ...(aiAnswer ? { aiAnswer } : {}), ...(aiTable ? { aiTable } : {}) });
   localStorage.setItem(getHistoryStorageKey(), JSON.stringify(history.slice(0, 20)));
@@ -370,11 +445,13 @@ function showLogin() {
   document.title = '건강 관리 프로젝트';
 }
 
-loginForm.addEventListener('submit', (event) => {
+loginForm.addEventListener('submit', async (event) => {
   event.preventDefault();
   const name = userNameInput.value.trim();
   const password = passwordInput.value.trim();
-  if (name === '홍길동' && password === '1234') {
+  if (name === '홍길동' && password === getDemoPassword()) {
+    if (cloudProfile) await appApi('/api/auth/logout', { method: 'POST' }).catch(() => {});
+    cloudProfile = null;
     sessionStorage.setItem('carelyUser', name);
     sessionStorage.setItem('carelyUserId', name);
     loginError.textContent = '';
@@ -385,7 +462,13 @@ loginForm.addEventListener('submit', (event) => {
   }
 });
 
-document.querySelector('#logoutButton').addEventListener('click', () => {
+document.querySelector('#logoutButton').addEventListener('click', async () => {
+  if (cloudProfile) {
+    try { await appApi('/api/auth/logout', { method: 'POST' }); }
+    catch (error) { console.error('로그아웃 요청 실패:', error.message); }
+  }
+  cloudProfile = null;
+  cloudHistory = [];
   sessionStorage.removeItem('carelyUser');
   sessionStorage.removeItem('carelyUserId');
   loginForm.reset();
@@ -544,13 +627,22 @@ renderHistory = () => {
   });
 };
 
-clearHistoryButton.addEventListener('click', () => {
-  localStorage.removeItem(getHistoryStorageKey());
+async function clearSavedHistory() {
+  if (cloudProfile) {
+    try {
+      await appApi('/api/history', { method: 'DELETE' });
+      cloudHistory = [];
+    } catch (error) { alert(`조회 기록을 삭제하지 못했습니다: ${error.message}`); return; }
+  } else {
+    localStorage.removeItem(getHistoryStorageKey());
+  }
   renderHistory();
+}
+clearHistoryButton.addEventListener('click', () => {
+  clearSavedHistory();
 });
 clearHistoryPageButton.addEventListener('click', () => {
-  localStorage.removeItem(getHistoryStorageKey());
-  renderHistory();
+  clearSavedHistory();
 });
 renderHistory();
 
@@ -612,8 +704,7 @@ async function requestAiMedicalAdvice(type, query, target) {
   target.classList.remove('hidden');
   target.innerHTML = '<div class="ai-loading"><span></span> AI가 최신 의료 정보를 확인하고 있습니다.</div>';
   try {
-    const apiOrigin = location.port === '3000' ? '' : 'http://localhost:3000';
-    const response = await fetch(`${apiOrigin}/api/medical-advice`, {
+    const response = await fetch('/api/medical-advice', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ type, query, allergy: currentProfile().allergy || '없음' })
@@ -625,12 +716,25 @@ async function requestAiMedicalAdvice(type, query, target) {
     if (table.recognized && Array.isArray(table.rows) && table.rows.length) saveHistory(type, query, '', table);
     target.innerHTML = buildAiMedicalTable(table, type);
   } catch (error) {
-    const directFileMessage = location.protocol === 'file:' ? 'AI 기능은 server.ps1로 사이트를 실행해야 사용할 수 있습니다.' : error.message;
+    const directFileMessage = location.protocol === 'file:' ? 'AI 기능은 npm run dev로 사이트를 실행해야 사용할 수 있습니다.' : error.message;
     target.innerHTML = `<div class="interaction-empty"><strong>AI 연결 실패</strong><br>${safeText(directFileMessage)}</div>`;
   }
 }
 surgeryForm.addEventListener('submit', (event) => { event.preventDefault(); event.stopImmediatePropagation(); requestAiMedicalAdvice('surgery', surgeryName.value.trim(), surgeryAiResult); }, true);
 interactionForm.addEventListener('submit', (event) => { event.preventDefault(); event.stopImmediatePropagation(); requestAiMedicalAdvice('medicine', currentMedicine.value.trim(), medicineAiResult); }, true);
 
-const savedUser = sessionStorage.getItem('carelyUser');
-if (savedUser) showDashboard(savedUser);
+async function restoreSession() {
+  if (location.protocol !== 'file:') {
+    try {
+      const data = await appApi('/api/auth/me');
+      if (data.profile) { await startCloudSession(data.profile); return; }
+    } catch { /* No active Supabase session. */ }
+  }
+  const savedUser = sessionStorage.getItem('carelyUser');
+  if (savedUser === '홍길동' && sessionStorage.getItem('carelyUserId') === '홍길동') showDashboard(savedUser);
+  else {
+    sessionStorage.removeItem('carelyUser');
+    sessionStorage.removeItem('carelyUserId');
+  }
+}
+restoreSession();

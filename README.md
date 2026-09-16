@@ -1,8 +1,20 @@
 # HealthManage
 
-파일 실행 방법
+## 로컬 사이트 실행
 
-.\start-server.cmd
+Node.js 20 이상을 설치한 뒤 프로젝트 폴더에서 실행합니다. 추가 패키지 설치는 필요하지 않습니다.
+
+```powershell
+npm run dev
+```
+
+브라우저에서 [http://127.0.0.1:3000](http://127.0.0.1:3000)을 엽니다. 포트는 `.env`의 `API_PORT`로 변경할 수 있습니다. AI 검색에는 `.env`의 `OPENAI_API_KEY`가 필요하며, 키가 없더라도 로그인 화면과 기본 페이지는 열립니다. 서버를 종료하려면 실행한 터미널에서 `Ctrl+C`를 누릅니다.
+
+회원가입·로그인·나의 정보·조회 기록은 Supabase Auth와 `public.profiles`, `public.search_history`에 연결됩니다. `.env`에 `SUPABASE_URL`, `SUPABASE_ANON_KEY`, `SUPABASE_SERVICE_ROLE_KEY`가 필요합니다. 비밀 키는 Node 서버에서만 사용하며 브라우저에 전달하지 않습니다. `홍길동/1234` 데모 계정은 여전히 로컬 체험용이며 Supabase에 저장되지 않습니다. 기존 브라우저 `localStorage` 계정은 자동 이전되지 않으므로 Supabase 계정으로 다시 가입해야 합니다. 이메일은 형식만 검사하며 회원가입 시 인증 메일을 요구하지 않습니다.
+
+Windows PowerShell에서 `npm.ps1 cannot be loaded because running scripts is disabled` 오류가 나면, 실행 정책을 바꾸지 않고 `npm.cmd run dev`를 사용하세요. 두 명령은 같은 `dev` 스크립트를 실행합니다. 현재 PowerShell 세션에서 정확히 `npm run dev` 명령을 쓰려면 먼저 `Set-Alias npm npm.cmd`를 한 번 실행하면 됩니다.
+
+기존 `./start-server.cmd` 실행 방식도 계속 사용할 수 있습니다. Node.js 설치 직후 `npm` 명령을 찾지 못하면 PowerShell을 새로 열어 다시 실행하세요. VS Code 터미널에서 계속 찾지 못한다면 VS Code를 재시작하세요.
 
 ## Supabase 데이터베이스 준비
 
@@ -10,7 +22,7 @@
 
 [전체 스키마 SQL](supabase/schemas/schema.sql)은 현재 DB의 목표 구조를 선언한 파일입니다. 처음 배포할 때는 마이그레이션만 `supabase db push`로 적용하세요. 같은 DB에 스키마 SQL을 별도로 한 번 더 실행하면 객체 중복 오류가 납니다. 이후 구조를 바꿀 때는 `schema.sql`을 먼저 수정하고 `supabase db diff -f <change_name>`으로 새 마이그레이션을 만들어 검토·배포합니다.
 
-현재 `script.js`는 아직 브라우저 `localStorage`로 계정과 기록을 관리합니다. 따라서 **SQL을 올리기만 해서는 기존 로그인·프로필·조회 기록이 Supabase로 자동 전환되지 않습니다.** 실제 연동 단계에서는 Supabase Auth 이메일/비밀번호 가입·로그인, `profiles` 조회·수정, `search_history` 저장·조회·삭제로 프런트엔드를 교체해야 합니다. 기존 `홍길동/1234` 데모 계정도 Supabase Auth에는 자동 생성되지 않습니다. 브라우저에 저장된 기존 비밀번호를 그대로 DB에 복사하지 마세요.
+실제 회원 계정은 Supabase Auth와 DB에 저장됩니다. 기존 `localStorage` 계정은 자동 이전되지 않으며, `홍길동/1234` 데모 계정은 Supabase Auth에 생성되지 않습니다. 브라우저에 저장된 기존 비밀번호를 그대로 DB에 복사하지 마세요.
 
 ### 처음 업로드하기
 
