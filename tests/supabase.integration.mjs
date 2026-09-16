@@ -20,7 +20,11 @@ let secondUserId = null;
 async function appRequest(path, method = 'GET', body, cookie = '') {
   const response = await fetch(`${baseUrl}${path}`, {
     method,
-    headers: { ...(body === undefined ? {} : { 'Content-Type': 'application/json' }), ...(cookie ? { Cookie: cookie } : {}) },
+    headers: {
+      ...(body === undefined ? {} : { 'Content-Type': 'application/json' }),
+      ...(method === 'GET' ? {} : { Origin: baseUrl }),
+      ...(cookie ? { Cookie: cookie } : {}),
+    },
     ...(body === undefined ? {} : { body: JSON.stringify(body) }),
   });
   return { response, data: await response.json() };
