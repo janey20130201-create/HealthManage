@@ -673,6 +673,27 @@ historyPageList.addEventListener('click', (event) => {
   row.after(detailRow);
 }, true);
 
+function formatSurgeryReason(value) {
+  const sourceUrls = [];
+  const addSource = (url) => {
+    try {
+      const parsed = new URL(url);
+      if (!['http:', 'https:'].includes(parsed.protocol)) return;
+      if (!sourceUrls.includes(parsed.href)) sourceUrls.push(parsed.href);
+    } catch { /* Ignore malformed source links. */ }
+  };
+  const reason = String(value || '의료진에게 확인하세요.')
+    .replace(/\[([^\]]+)\]\((https?:\/\/[^\s)]+)\)/giu, (_match, _label, url) => { addSource(url); return ''; })
+    .replace(/https?:\/\/[^\s<>\])]+/giu, (url) => { addSource(url.replace(/[.,;!?]+$/u, '')); return ''; })
+    .replace(/cite[^]+/gu, '')
+    .replace(/(?:^|\s)(?:출처|참고(?:자료|문헌)?|Sources?|References?)\s*[:：]\s*[^\n]*/gimu, '')
+    .replace(/\(\s*\)|\[\s*\]/gu, '')
+    .replace(/\s{2,}/gu, ' ')
+    .trim();
+  const links = sourceUrls.map((url, index) => `<a href="${safeText(url)}" target="_blank" rel="noopener noreferrer" aria-label="출처 ${index + 1}">출처${sourceUrls.length > 1 ? ` ${index + 1}` : ''}</a>`).join(' · ');
+  return `${safeText(reason || '의료진에게 확인하세요.')}${links ? ` <small class="reason-sources">${links}</small>` : ''}`;
+}
+
 function buildAiMedicalTable(table, type) {
   const rawRows = Array.isArray(table && table.rows) ? [...table.rows].sort((a, b) => Number(b.risk === 'high') - Number(a.risk === 'high')) : [];
   const seenMedicines = new Set();
@@ -692,7 +713,8 @@ function buildAiMedicalTable(table, type) {
     const highRisk = row.risk === 'high';
     const brandValues = Array.isArray(row.brandNames) ? row.brandNames : String(row.brandNames || '').split(/[,，·;]/);
     const brands = [...new Set(brandValues.map((value) => String(value).trim()).filter(Boolean))].slice(0, 3).join(', ');
-    return `<tr><td>${safeText(String(row.medicine || '확인 필요'))}<small class="brand-names">대표 상품명: ${safeText(brands || '확인 필요')}</small></td><td>${safeText(row.ingredientText || '주요 성분 확인 필요')}</td><td><span class="risk-badge ${highRisk ? 'risk-high' : 'risk-caution'}">${highRisk ? '고위험 · 반드시 확인' : '주의'}</span></td><td>${safeText(String(row.reason || '의료진에게 확인하세요.'))}</td></tr>`;
+    const reason = type === 'surgery' ? formatSurgeryReason(row.reason) : safeText(String(row.reason || '의료진에게 확인하세요.'));
+    return `<tr><td>${safeText(String(row.medicine || '확인 필요'))}<small class="brand-names">대표 상품명: ${safeText(brands || '확인 필요')}</small></td><td>${safeText(row.ingredientText || '주요 성분 확인 필요')}</td><td><span class="risk-badge ${highRisk ? 'risk-high' : 'risk-caution'}">${highRisk ? '고위험 · 반드시 확인' : '주의'}</span></td><td>${reason}</td></tr>`;
   }).join('');
   if (!rowMarkup) return '<div class="interaction-empty">확인된 결과가 없습니다.</div>';
   return `<div class="medicine-table-wrap"><table class="medicine-table"><thead><tr><th>${firstHeader}</th><th>주요 성분</th><th>구분</th><th>${lastHeader}</th></tr></thead><tbody>${rowMarkup}</tbody></table></div>`;
