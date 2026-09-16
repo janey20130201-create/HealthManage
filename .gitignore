@@ -1,0 +1,8 @@
+.env
+.env.local
+.env.*.local
+.env.*
+!.env.example
+supabase/.temp/
+supabase/.branches/
+supabase/.profiles/

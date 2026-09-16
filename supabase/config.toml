@@ -1,0 +1,6 @@
+# Local Supabase CLI configuration. The remote project is selected with
+# `supabase link --project-ref <ref>`; do not put credentials in this file.
+project_id = "caring"
+
+[db.migrations]
+schema_paths = ["./schemas/schema.sql"]

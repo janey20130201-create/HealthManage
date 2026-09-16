@@ -1,0 +1,98 @@
+<!doctype html>
+<html lang="ko">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>건강 관리 프로젝트</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Noto+Sans+KR:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+    <link rel="stylesheet" href="styles.css" />
+    <link rel="stylesheet" href="ai.css" />
+  </head> 
+  <body>
+    <main class="app-shell">
+      <section id="loginView" class="login-view">
+        <div class="brand-mark" aria-label="건강 관리 프로젝트 로고">
+          <span class="brand-symbol">+</span>
+          <span>caring</span>
+        </div>
+        <div class="login-card">
+          <div class="eyebrow">HEALTH MANAGEMENT PROJECT</div>
+          <h1>더 건강한 오늘을<br /><em>시작해 보세요.</em></h1>
+          <p class="login-intro">나의 건강 데이터를 한눈에 확인하고<br />매일의 작은 습관을 기록해 보세요.</p>
+          <form id="loginForm" novalidate>
+            <label for="userName">이름</label>
+            <input id="userName" name="userName" type="text" placeholder="이름을 입력해 주세요" autocomplete="username" />
+            <label for="password">비밀번호</label>
+            <input id="password" name="password" type="password" placeholder="비밀번호를 입력해 주세요" autocomplete="current-password" />
+            <p id="loginError" class="form-message" role="alert"></p>
+            <button class="primary-button" type="submit">로그인 <span>→</span></button>
+          </form>
+          <p class="demo-hint">테스트 계정 <strong>홍길동</strong> · <strong>1234</strong></p>
+        </div>
+        <p class="login-footer">오늘도 나를 돌보는 가장 쉬운 방법</p>
+        <section class="auth-card" aria-label="계정 인증">
+          <div class="auth-title"><span class="brand-symbol">+</span><h1>건강 관리 프로젝트</h1></div>
+          <p class="auth-subtitle">건강한 기록을 안전하게 관리하세요.</p>
+          <div class="auth-tabs"><button class="auth-tab active" data-auth-tab="login" type="button">로그인</button><button class="auth-tab" data-auth-tab="signup" type="button">회원가입</button></div>
+          <form id="authLoginForm" class="auth-form" novalidate><label for="loginId">아이디</label><input id="loginId" type="text" placeholder="아이디를 입력해 주세요" autocomplete="username" /><label for="loginPassword">비밀번호</label><input id="loginPassword" type="password" placeholder="비밀번호를 입력해 주세요" autocomplete="current-password" /><p id="authLoginError" class="form-message" role="alert"></p><button class="primary-button" type="submit">로그인</button></form>
+          <form id="signupForm" class="auth-form hidden" novalidate><label for="signupName">이름</label><input id="signupName" type="text" placeholder="이름을 입력해 주세요" autocomplete="name" /><label for="signupGender">성별</label><select id="signupGender"><option value="">선택해 주세요</option><option value="남성">남성</option><option value="여성">여성</option><option value="기타">기타</option><option value="응답하지 않음">응답하지 않음</option></select><label for="signupBirthYear">출생연도</label><div class="birthdate-row"><input id="signupBirthYear" type="number" min="1900" max="2026" placeholder="예: 1990" /><select id="signupBirthMonth"><option value="">월</option></select><select id="signupBirthDay"><option value="">일</option></select></div><label for="signupEmail">이메일</label><input id="signupEmail" type="email" placeholder="example@email.com" autocomplete="email" /><label for="signupAllergy">알레르기</label><input id="signupAllergy" type="text" placeholder="없음 또는 내용을 입력해 주세요" /><div class="field-row"><div><label for="signupHeight">키 (cm)</label><input id="signupHeight" type="number" min="30" max="250" step="0.1" placeholder="예: 170" /></div><div><label for="signupWeight">몸무게 (kg)</label><input id="signupWeight" type="number" min="2" max="300" step="0.1" placeholder="예: 65" /></div></div><label for="signupId">아이디</label><input id="signupId" type="text" placeholder="사용할 아이디를 입력해 주세요" autocomplete="username" /><label for="signupPassword">비밀번호</label><input id="signupPassword" type="password" placeholder="비밀번호를 설정해 주세요" autocomplete="new-password" /><label for="signupPasswordConfirm">비밀번호 확인</label><input id="signupPasswordConfirm" type="password" placeholder="비밀번호를 한 번 더 입력해 주세요" autocomplete="new-password" /><p id="signupError" class="form-message" role="alert"></p><button class="primary-button" type="submit">회원가입</button></form>
+          <p class="auth-demo">테스트 계정 · 아이디 <strong>홍길동</strong> · 비밀번호 <strong>1234</strong></p>
+        </section>
+      </section>
+
+      <section id="dashboardView" class="dashboard-view hidden">
+        <aside class="chat-sidebar" aria-label="주 메뉴"><div class="sidebar-brand"><span class="brand-symbol">+</span><strong>caring</strong></div><button class="new-chat-button" type="button" onclick="document.querySelector('#surgeryName').focus()">＋ 새 조회 시작</button><nav class="sidebar-nav"><button type="button" onclick="document.querySelector('#surgeryName').focus()"><span>⌕</span> 수술 주의사항</button><button type="button" onclick="document.querySelector('#currentMedicine').focus()"><span>⌁</span> 약물 상호작용</button><button type="button" id="sidebarHistoryButton"><span>▤</span> 조회 기록</button></nav><div class="sidebar-bottom"><button type="button" id="sidebarProfileButton"><span>♙</span> 나의 정보</button><div class="sidebar-user"><span class="user-avatar">홍</span><span>홍길동</span></div></div></aside>
+        <header class="topbar">
+          <div class="brand-mark"><span class="brand-symbol">+</span><span>caring</span></div>
+          <div class="header-actions"><span class="today-label">2026년 9월 2일</span><button id="logoutButton" class="logout-button">로그아웃</button></div>
+        </header>
+        <div class="quick-actions" aria-label="빠른 메뉴"><button id="profileButton" class="header-icon" type="button" title="나의 정보" aria-label="나의 정보 확인 및 수정">♙</button><button id="historyButton" class="header-icon" type="button" title="조회 기록" aria-label="조회 기록 열기">▤</button></div>
+        <section id="profilePanel" class="profile-panel hidden" aria-labelledby="profileTitle">
+          <div class="profile-panel-heading"><div><div class="eyebrow">MY PROFILE</div><h3 id="profileTitle">나의 정보</h3></div><button id="closeProfileButton" class="panel-close" type="button" aria-label="닫기">×</button></div>
+          <form id="profileForm" class="profile-form"><label for="profileName">이름</label><input id="profileName" type="text" readonly /><label for="profileGender">성별</label><select id="profileGender" disabled><option value="남성">남성</option><option value="여성">여성</option><option value="기타">기타</option><option value="응답하지 않음">응답하지 않음</option></select><label for="profileBirthYear">출생연도</label><div class="birthdate-row"><input id="profileBirthYear" type="number" readonly /><select id="profileBirthMonth" disabled><option value="">월</option></select><select id="profileBirthDay" disabled><option value="">일</option></select></div><label for="profileEmail">이메일</label><input id="profileEmail" type="email" readonly /><label for="profileAllergy">알레르기</label><input id="profileAllergy" type="text" placeholder="없음 또는 내용" readonly /><div class="field-row"><div><label for="profileHeight">키 (cm)</label><input id="profileHeight" type="number" readonly /></div><div><label for="profileWeight">몸무게 (kg)</label><input id="profileWeight" type="number" readonly /></div></div><label for="profileId">아이디</label><input id="profileId" type="text" readonly /><label for="currentProfilePassword">현재 비밀번호</label><input id="currentProfilePassword" type="password" placeholder="비밀번호 변경 시 입력" readonly autocomplete="current-password" /><label for="profilePassword">새 비밀번호</label><input id="profilePassword" type="password" placeholder="새 비밀번호를 입력해 주세요" readonly autocomplete="new-password" /><p id="profileMessage" class="profile-message"></p><div class="profile-actions"><button id="editProfileButton" class="profile-edit-button" type="button">수정하기</button><button class="primary-button hidden" id="saveProfileButton" type="submit">정보 저장</button></div></form>
+        </section>
+        <div class="dashboard-content">
+          <div class="welcome-row">
+            <div><div class="eyebrow">MY HEALTH DASHBOARD</div><h2><span id="welcomeName">홍길동</span>님, 좋은 아침이에요 <span class="wave">✦</span></h2><p>오늘도 건강한 하루를 위한 준비가 되어 있어요.</p></div>
+            <div class="date-chip"><span class="sun-dot">☼</span> 오늘의 건강 점수 <strong>82</strong><small>/ 100</small></div>
+          </div>
+          <section class="surgery-planner" aria-labelledby="surgeryTitle">
+            <div class="planner-copy"><div class="eyebrow">SURGERY PREPARATION</div><h3 id="surgeryTitle">앞두고 있는 수술을 알려주세요</h3><p>수술명을 입력하면 수술 전후에 확인할 주요 약물·음식·생활 습관 항목을 정리해 드려요.</p></div>
+            <form id="surgeryForm" class="surgery-form"><label class="sr-only" for="surgeryName">수술 이름</label><input id="surgeryName" type="text" placeholder="예: 백내장 수술, 위내시경" autocomplete="off" /><button type="submit">주의사항 보기 <span>→</span></button></form>
+            <div id="surgeryResult" class="surgery-result hidden" aria-live="polite"></div>
+            <div id="surgeryAiResult" class="ai-medical-result hidden" aria-live="polite"></div>
+          </section>
+          <section class="interaction-planner" aria-labelledby="interactionTitle">
+            <div class="planner-copy"><div class="eyebrow">MEDICINE INTERACTION CHECK</div><h3 id="interactionTitle">현재 복용 중인 약도 확인해 보세요</h3><p>약 이름을 입력하면 함께 복용하기 전 확인해야 할 대표적인 약물 조합을 보여드립니다.</p></div>
+            <form id="interactionForm" class="surgery-form"><label class="sr-only" for="currentMedicine">현재 복용약</label><input id="currentMedicine" type="text" placeholder="예: 와파린, 아픽사반, 아스피린" autocomplete="off" /><button type="submit">상호작용 확인 <span>→</span></button></form>
+            <div id="interactionResult" class="interaction-result hidden" aria-live="polite"></div>
+            <div id="medicineAiResult" class="ai-medical-result hidden" aria-live="polite"></div>
+          </section>
+          <section id="allergyWarning" class="allergy-warning hidden" aria-labelledby="allergyWarningTitle"></section>
+          <section class="history-panel" aria-labelledby="historyTitle">
+            <div class="history-heading"><div><div class="eyebrow">MY SEARCH ARCHIVE</div><h3 id="historyTitle">최근 조회 기록</h3></div><button id="clearHistoryButton" class="clear-history" type="button">전체 삭제</button></div>
+            <div id="historyList" class="history-list"><p class="history-empty">아직 저장된 조회 기록이 없습니다.</p></div>
+          </section>
+          <div class="dashboard-grid">
+            <article class="hero-card">
+              <div class="card-label">오늘의 목표</div>
+              <h3>조금씩, 꾸준히<br /><span>더 나은 나로</span></h3>
+              <p>오늘 목표의 68%를 달성했어요.<br />남은 목표도 가볍게 채워볼까요?</p>
+              <div class="progress-track"><div class="progress-fill"></div></div><div class="progress-meta"><span>일일 달성률</span><b>68%</b></div>
+              <div class="hero-orb orb-one"></div><div class="hero-orb orb-two"></div>
+            </article>
+            <article class="stat-card steps-card"><div class="card-top"><span>걸음 수</span><span class="icon-badge">↗</span></div><div class="stat-value">6,248 <small>걸음</small></div><div class="mini-bars"><i style="height:36%"></i><i style="height:55%"></i><i style="height:45%"></i><i style="height:72%"></i><i style="height:62%"></i><i class="active" style="height:92%"></i><i style="height:48%"></i></div><p>목표까지 <b>3,752걸음</b> 남았어요</p></article>
+            <article class="stat-card water-card"><div class="card-top"><span>수분 섭취</span><span class="icon-badge">⌁</span></div><div class="stat-value">1.2 <small>/ 2.0 L</small></div><div class="water-progress"><div></div></div><p>오늘 물을 <b>2잔</b> 더 마셔보세요</p></article>
+            <article class="activity-card"><div class="card-heading"><h3>오늘의 활동</h3><button>전체 보기 <span>→</span></button></div><div class="activity-item"><div class="activity-icon walk">♧</div><div><b>아침 산책</b><small>오늘 오전 08:30 · 32분</small></div><strong>완료</strong></div><div class="activity-item"><div class="activity-icon stretch">✦</div><div><b>가벼운 스트레칭</b><small>오늘 오후 13:00 · 10분</small></div><strong class="pending">예정</strong></div><div class="activity-item"><div class="activity-icon meal">◒</div><div><b>균형 잡힌 식사</b><small>오늘 오후 19:00</small></div><strong class="pending">예정</strong></div></article>
+            <article class="tip-card"><div class="tip-tag">TODAY'S TIP</div><h3>몸이 보내는 신호에<br />귀 기울여 보세요.</h3><p>잠깐의 휴식도 건강한 습관입니다.</p><div class="leaf-art">☘</div></article>
+          </div>
+        </div>
+        <footer class="dashboard-footer">© 2026 carely · 건강한 삶을 위한 작은 기록</footer>
+        <section id="historyPage" class="history-page hidden" aria-labelledby="historyPageTitle"><div class="history-heading"><div><div class="eyebrow">MY SEARCH ARCHIVE</div><h3 id="historyPageTitle">조회 저장소</h3></div><button id="clearHistoryPageButton" class="clear-history" type="button">전체 삭제</button></div><div id="historyPageList" class="history-list"><p class="history-empty">아직 저장된 조회 기록이 없습니다.</p></div></section>
+      </section>
+    </main>
+    <script src="script.js"></script>
+  </body>
+</html>
